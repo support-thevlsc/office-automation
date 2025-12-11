@@ -1,0 +1,5 @@
+﻿pytesseract
+Pillow
+pdf2image
+watchdog
+openai
