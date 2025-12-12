@@ -117,7 +117,7 @@ class EmailIngestor:
         INTAKE_QUEUE.mkdir(parents=True, exist_ok=True)
 
     def fetch_attachments(self) -> List[AttachmentRecord]:
-        logging.info("Connecting to IMAP server for books@thevlsc.com")
+        logging.info("Connecting to IMAP server for %s", self.config.username)
         attachments: List[AttachmentRecord] = []
         with imaplib.IMAP4_SSL(self.config.imap_host) as mail:
             mail.login(self.config.username, self.config.password)
@@ -377,6 +377,11 @@ def process_attachment(attachment: AttachmentRecord, config: EmailIngestionConfi
     final_path = route_file(
         stamped_path, response, payload, metadata_hash, db, original_name=attachment.filename
     )
+    try:
+        attachment.local_path.unlink(missing_ok=True)
+        logging.info("Removed intake copy %s", attachment.local_path)
+    except Exception as exc:
+        logging.warning("Failed to remove intake file %s: %s", attachment.local_path, exc)
     return final_path
 
 
