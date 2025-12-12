@@ -1,0 +1,43 @@
+flowchart LR
+    %% Accounts
+    A[User / External Sender] --> B[Books Mailbox\nbooks@thevlsc.com]
+
+    %% Local Ingestion
+    subgraph LOCAL[Local Ingestion Pipeline (Python)]
+        B --> C[email_ingestion.py\n(IMAP fetch)]
+        C --> D[Save Attachments\n(data/intake_queue)]
+        D --> E[OCR / Text Extraction\nCaptureOnTouch / pytesseract]
+        E --> F[Build Metadata &\nPreliminary Route Hint\n(AP / AR / CLIENT / ADMIN / ARCHIVE)]
+        F --> G[Generate QR Payload\n_qr_payload()]
+        G --> H[Stamp File with QR\nPDF/Image -> data/stamped]
+        H --> I[send_to_worker()\nPOST to VLSC_WORKER_ENDPOINT]
+    end
+
+    %% Cloudflare Worker
+    subgraph CF[Cloudflare Worker\ncloudflare_email_worker.js]
+        I --> J[Classify & Name\n(route, final_filename, metadata)]
+        J --> K[Return JSON Response]
+    end
+
+    %% Back to Local
+    K --> L[route_file()\nDecode QR, validate, log]
+
+    subgraph STORAGE[Processed Storage\n(data/processed/...)]
+        L --> AP[data/processed/ap]
+        L --> AR[data/processed/ar]
+        L --> CL[data/processed/client]
+        L --> AD[data/processed/admin]
+        L --> ARV[data/processed/archive]
+    end
+
+    %% Logical Routing by Account Hierarchy
+    subgraph ACCOUNTS[Logical Ownership / Consumers]
+        AP --> ADM1[Admin\nadmin@thevlsc.com\n(Financial/AP-AR Review)]
+        AR --> ADM2[Admin\nadmin@thevlsc.com\n(Financial/AP-AR Review)]
+        CL --> SUPP[Support\nsupport@thevlsc.com\n(Tasks, Calendar, Reminders)]
+        AD --> ADM3[Admin\nadmin@thevlsc.com\n(Sensitive / Internal)]
+        ADM3 --> OWN1[Owner\nchristian@thevlsc.com\n(Only Essentials)]
+        ADM1 --> OWN2[Owner\nchristian@thevlsc.com\n(High-level Financial)]
+        ADM2 --> OWN3[Owner\nchristian@thevlsc.com\n(High-level Financial)]
+        ARV --> ARCHIVE_NODE[Archive / The_VLSC_Secure\n(Admin + Owner only for sensitive)]
+    end
