@@ -170,7 +170,11 @@ def extract_text(path: Path, capture_cmd: Optional[str] = None) -> str:
     # Try vendor-supplied OCR command first (CaptureOnTouch CLI or similar).
     if capture_cmd:
         try:
-            cmd_parts = shlex.split(capture_cmd) + [str(path)]
+            if "{path}" in capture_cmd:
+                interpolated = capture_cmd.replace("{path}", shlex.quote(str(path)))
+                cmd_parts = shlex.split(interpolated)
+            else:
+                cmd_parts = shlex.split(capture_cmd) + [str(path)]
             proc = subprocess.run(cmd_parts, capture_output=True, text=True, timeout=60)
             if proc.returncode == 0 and proc.stdout.strip():
                 return proc.stdout
