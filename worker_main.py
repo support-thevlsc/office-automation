@@ -442,9 +442,9 @@ def handle_file(path: Path):
 
         # Classification
         route_tag, priority, class_confidence = classify_text(text, metadata)
-        combined_confidence = min(
-            max(class_confidence, metadata.get("document_type_confidence", 0.0)), ocr_conf or 1
-        )
+        max_class_conf = max(class_confidence, metadata.get("document_type_confidence", 0.0))
+        ocr_conf_cap = ocr_conf if ocr_conf is not None else 1.0
+        combined_confidence = min(max_class_conf, ocr_conf_cap)
         min_conf = CONFIG["classification"]["min_confidence"]
         if combined_confidence < min_conf:
             logging.warning(
