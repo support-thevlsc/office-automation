@@ -3,10 +3,10 @@
 
 $ErrorActionPreference = "Stop"
 
-# -------- SETTINGS --------
-$BasePath   = "D:\OneDrive - The VLSC\The_VLSC_DocumentHub"
-$PythonCmd  = "python"
-# --------------------------
+param(
+    [string]$BasePath  = "C:\\Users\\mchri\\OneDrive - The VLSC\\The_VLSC_DocumentHub",
+    [string]$PythonCmd = "python"
+)
 
 Write-Host "Base path: $BasePath"
 
