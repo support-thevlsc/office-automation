@@ -11,6 +11,8 @@ from email import message_from_bytes
 from email.message import Message
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import shlex
+import subprocess
 
 import pdf2image
 import pytesseract
@@ -43,6 +45,10 @@ class EmailIngestionConfig:
     mailbox: str = "INBOX"
     allowed_extensions: Tuple[str, ...] = (".pdf", ".png", ".jpg", ".jpeg")
     endpoint: str = DEFAULT_WORKER_ENDPOINT
+    # Optional command to invoke CaptureOnTouch (or other vendor OCR). The command
+    # should accept the image/pdf path as the last argument and emit plain text
+    # to stdout. Example: "C:\\Program Files\\Canon\\CaptureOnTouch\\cotocr.exe --ocr"
+    capture_cmd: Optional[str] = None
     max_retries: int = 3
     backoff_seconds: int = 3
 
@@ -160,7 +166,19 @@ class EmailIngestor:
         return saved
 
 
-def extract_text(path: Path) -> str:
+def extract_text(path: Path, capture_cmd: Optional[str] = None) -> str:
+    # Try vendor-supplied OCR command first (CaptureOnTouch CLI or similar).
+    if capture_cmd:
+        try:
+            cmd_parts = shlex.split(capture_cmd) + [str(path)]
+            proc = subprocess.run(cmd_parts, capture_output=True, text=True, timeout=60)
+            if proc.returncode == 0 and proc.stdout.strip():
+                return proc.stdout
+            logging.warning("Capture OCR command failed (%s): %s", proc.returncode, proc.stderr)
+        except Exception as exc:
+            logging.warning("Capture OCR command exception for %s: %s", path, exc)
+
+    # Fall back to pytesseract for OCR if vendor command not provided or failed.
     try:
         if path.suffix.lower() == ".pdf":
             images = pdf2image.convert_from_path(path, dpi=200, first_page=1, last_page=1)
@@ -329,7 +347,7 @@ def route_file(
 
 
 def process_attachment(attachment: AttachmentRecord, config: EmailIngestionConfig, db: DatabaseClient) -> Optional[Path]:
-    text = extract_text(attachment.local_path)
+    text = extract_text(attachment.local_path, config.capture_cmd)
     metadata_hash = build_metadata_hash(text, attachment.local_path)
     route_hint = determine_route_hint(text)
     doc_type = attachment.subject or "email-attachment"
@@ -370,6 +388,7 @@ def run_email_ingestion():
         username=os.environ.get("IMAP_USERNAME", "books@thevlsc.com"),
         password=os.environ.get("IMAP_PASSWORD", ""),
         endpoint=os.environ.get("VLSC_WORKER_ENDPOINT", DEFAULT_WORKER_ENDPOINT),
+        capture_cmd=os.environ.get("CAPTURE_TOUCH_OCR_CMD"),
     )
 
     ingestor = EmailIngestor(config)
