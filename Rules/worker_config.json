@@ -4,7 +4,7 @@
     "needs_review_dir": "./Data/02_NeedsReview",
     "duplicate_hold_dir": "./Data/03_DuplicateHold",
     "ocr_text_dir": "./Data/04_OCRText",
-    "staging_dir": "./Data/05_Staging",
+    "staging_dir": "./Data/01_Processing/Staging",
     "temp_dir": "./Data/00_Temp",
     "logs_dir": "./Logs",
     "rules_file": "./Rules/routing_rules.json"
