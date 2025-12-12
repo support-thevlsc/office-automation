@@ -12,6 +12,9 @@ Usage:
   # or with env var
   export CAPTURE_TOUCH_OCR_CMD="/path/to/capture_ocr_wrapper.py --cmd \"/path/to/cotocr --ocr\""
   capture_ocr_wrapper.py /path/to/file.pdf
+
+You can also include a `{path}` placeholder inside the command; it will be
+replaced with the quoted file path instead of being appended.
 """
 import argparse
 import os
@@ -33,7 +36,11 @@ def main() -> int:
 
     # Build command and run
     try:
-        parts = shlex.split(cmd) + [args.path]
+        if "{path}" in cmd:
+            interpolated = cmd.replace("{path}", shlex.quote(args.path))
+            parts = shlex.split(interpolated)
+        else:
+            parts = shlex.split(cmd) + [args.path]
         proc = subprocess.run(parts, capture_output=True, text=True, timeout=120)
     except Exception as exc:
         print(f"OCR wrapper exception: {exc}", file=sys.stderr)
