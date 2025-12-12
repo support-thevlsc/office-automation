@@ -303,13 +303,14 @@ def decode_qr_payload_from_path(path: Path) -> Optional[str]:
     return None
 
 
-def _apply_naming_convention(response: Dict, fallback_name: str) -> str:
+def _apply_naming_convention(response: Dict, fallback_name: str, metadata: Optional[Dict] = None) -> str:
     if "final_filename" in response and response["final_filename"]:
         return response["final_filename"]
     if "naming_convention" in response:
         try:
             template = response["naming_convention"]
-            return template.format(**response.get("metadata", {}))
+            merged_metadata = {**(metadata or {}), **response.get("metadata", {})}
+            return template.format(**merged_metadata)
         except Exception as exc:
             logging.warning("Failed to apply naming convention: %s", exc)
     return fallback_name
@@ -322,12 +323,13 @@ def route_file(
     metadata_hash: str,
     db: DatabaseClient,
     original_name: str,
+    metadata: Optional[Dict] = None,
 ) -> Path:
     route = response.get("route", "ARCHIVE").upper()
     target_dir = PROCESSED_DIRS.get(route, PROCESSED_DIRS["ARCHIVE"])
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    final_name = _apply_naming_convention(response, stamped_path.name)
+    final_name = _apply_naming_convention(response, stamped_path.name, metadata)
     destination = target_dir / final_name
     if destination.exists():
         destination = target_dir / f"{destination.stem}_{int(time.time())}{destination.suffix}"
@@ -379,7 +381,13 @@ def process_attachment(attachment: AttachmentRecord, config: EmailIngestionConfi
         return None
 
     final_path = route_file(
-        stamped_path, response, payload, metadata_hash, db, original_name=attachment.filename
+        stamped_path,
+        response,
+        payload,
+        metadata_hash,
+        db,
+        original_name=attachment.filename,
+        metadata=metadata,
     )
     try:
         attachment.local_path.unlink(missing_ok=True)
