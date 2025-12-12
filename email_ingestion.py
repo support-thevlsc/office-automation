@@ -328,6 +328,9 @@ def route_file(
     target_dir.mkdir(parents=True, exist_ok=True)
 
     final_name = _apply_naming_convention(response, stamped_path.name)
+    final_name_path = Path(final_name)
+    if not final_name_path.suffix:
+        final_name = final_name_path.with_suffix(stamped_path.suffix).name
     destination = target_dir / final_name
     if destination.exists():
         destination = target_dir / f"{destination.stem}_{int(time.time())}{destination.suffix}"
