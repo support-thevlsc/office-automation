@@ -1,5 +1,9 @@
-﻿pytesseract
+pytesseract
 Pillow
 pdf2image
 watchdog
 openai
+requests
+qrcode
+pypdf
+pyzbar
