@@ -1,0 +1,30 @@
+{
+  "paths": {
+    "raw_scans_dir": "./Data/01_RawScans",
+    "needs_review_dir": "./Data/02_NeedsReview",
+    "duplicate_hold_dir": "./Data/03_DuplicateHold",
+    "ocr_text_dir": "./Data/04_OCRText",
+    "staging_dir": "./Data/05_Staging",
+    "temp_dir": "./Data/00_Temp",
+    "logs_dir": "./Logs",
+    "rules_file": "./Rules/routing_rules.json"
+  },
+  "polling": {
+    "interval_seconds": 5,
+    "stability_check_seconds": 2,
+    "allowed_extensions": [".pdf", ".tif", ".tiff", ".png", ".jpg", ".jpeg"]
+  },
+  "logging": {
+    "level": "INFO",
+    "csv_log": "./Logs/worker_history.csv"
+  },
+  "classification": {
+    "min_confidence": 0.6
+  },
+  "power_automate_forwarding": {
+    "enabled": true,
+    "books_email": "books@yourcompany.com",
+    "sender_email": "documenthub@local",
+    "outbox_dir": "./Logs/Outbox"
+  }
+}

@@ -1,10 +1,12 @@
-﻿import os
+import os
 import time
 import json
 import logging
 import shutil
 from pathlib import Path
 from datetime import datetime
+
+from power_automate_local import forward_file_to_books
 
 CONFIG_PATH = Path(__file__).parent / "Rules" / "worker_config.json"
 
@@ -26,6 +28,12 @@ STAGING_DIR = Path(PATHS["staging_dir"])
 TEMP_DIR = Path(PATHS["temp_dir"])
 LOGS_DIR = Path(PATHS["logs_dir"])
 RULES_FILE = Path(PATHS["rules_file"])
+
+POWER_AUTOMATE = CONFIG.get("power_automate_forwarding", {})
+EMAIL_FORWARD_ENABLED = POWER_AUTOMATE.get("enabled", False)
+BOOKS_EMAIL = POWER_AUTOMATE.get("books_email", "")
+SENDER_EMAIL = POWER_AUTOMATE.get("sender_email", "documenthub@local")
+OUTBOX_DIR = Path(POWER_AUTOMATE.get("outbox_dir", LOGS_DIR / "Outbox"))
 
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -228,6 +236,37 @@ def handle_file(path: Path):
                 "error": "",
             }
         )
+
+        if EMAIL_FORWARD_ENABLED and BOOKS_EMAIL:
+            try:
+                eml_path = forward_file_to_books(
+                    final_path,
+                    books_email=BOOKS_EMAIL,
+                    sender_email=SENDER_EMAIL,
+                    outbox_dir=OUTBOX_DIR,
+                    subject_prefix="DocumentHub Forward",
+                    body_intro=(
+                        "Automated forwarding prepared locally for the Books account."
+                    ),
+                )
+                logging.info(
+                    f"Prepared Books forwarding email at {eml_path} for {final_path}"
+                )
+            except Exception as forward_error:
+                logging.exception(
+                    f"Failed to prepare Books forwarding email for {final_path}: {forward_error}"
+                )
+                log_to_csv(
+                    {
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "original_path": str(path),
+                        "final_path": str(final_path),
+                        "route_tag": route_tag,
+                        "priority": priority,
+                        "status": "FORWARD_FAILED",
+                        "error": str(forward_error),
+                    }
+                )
 
     except Exception as e:
         logging.exception(f"Error handling file {path}: {e}")

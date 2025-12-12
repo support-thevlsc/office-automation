@@ -1,0 +1,13 @@
+{
+  "fallback_tag": "Misc",
+  "priorities": {
+    "P1": ["urgent", "payment due"],
+    "P2": ["invoice", "statement"],
+    "P3": ["general"]
+  },
+  "keyword_routes": [
+    {"tag": "AP", "keywords": ["invoice", "accounts payable"]},
+    {"tag": "AR", "keywords": ["remittance", "payment"]},
+    {"tag": "HR", "keywords": ["resume", "candidate"]}
+  ]
+}
