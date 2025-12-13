@@ -27,6 +27,7 @@ DEFAULT_CONFIG = {
         "temp_dir": str(BASE_DIR / "data" / "temp"),
         "logs_dir": str(BASE_DIR / "logs"),
         "rules_file": str(BASE_DIR / "Rules" / "routing_rules.json"),
+        "personal_storage_dir": str(BASE_DIR / "data" / "personal" / "secure"),
     },
     "logging": {
         "csv_log": str(BASE_DIR / "logs" / "worker_log.csv"),
@@ -62,6 +63,7 @@ STAGING_DIR = Path(PATHS["staging_dir"])
 TEMP_DIR = Path(PATHS["temp_dir"])
 LOGS_DIR = Path(PATHS["logs_dir"])
 RULES_FILE = Path(PATHS["rules_file"])
+PERSONAL_STORAGE_DIR = Path(PATHS["personal_storage_dir"])
 
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -127,6 +129,39 @@ STORE = FlexibleStore(METADATA_STORE_PATH)
 
 
 # Utility
+
+
+def ensure_directory(path: Path, mode: int = 0o755) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(path, mode)
+    except PermissionError:
+        logging.warning("Unable to set permissions for %s", path)
+    return path
+
+
+def ensure_personal_directory(base_dir: Path) -> Path:
+    personal_root = ensure_directory(base_dir, mode=0o700)
+    dated_dir = ensure_directory(
+        personal_root / datetime.utcnow().strftime("%Y%m%d"), mode=0o700
+    )
+    return dated_dir
+
+
+def detect_file_format(path: Path) -> str:
+    suffix = path.suffix.lower().lstrip(".")
+    return suffix or "unknown"
+
+
+def is_personal_file(path: Path, metadata: dict) -> bool:
+    name_lower = path.name.lower()
+    personal_keywords = ["owner", "personal"]
+    if any(keyword in name_lower for keyword in personal_keywords):
+        return True
+    doc_type = metadata.get("document_type", "")
+    if isinstance(doc_type, str) and "personal" in doc_type.lower():
+        return True
+    return False
 
 def crc32_for_file(path: Path) -> str:
     import zlib
@@ -426,6 +461,33 @@ def handle_file(path: Path):
             logging.info(f"File not stable yet, skipping: {path}")
             return
 
+        allowed_exts = set(
+            ext.lower() for ext in CONFIG["polling"].get("allowed_extensions", [])
+        )
+        file_format = detect_file_format(path)
+        if allowed_exts and path.suffix.lower() not in allowed_exts:
+            logging.warning(
+                "Unrecognized file format %s for %s, moving to NeedsReview", file_format, path
+            )
+            NEEDS_REVIEW_DIR.mkdir(parents=True, exist_ok=True)
+            review_dest = NEEDS_REVIEW_DIR / path.name
+            shutil.move(str(path), review_dest)
+            record = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "original_path": str(path),
+                "final_path": str(review_dest),
+                "route_tag": "",
+                "priority": "",
+                "status": "UNRECOGNIZED_FORMAT",
+                "error": "",
+                "file_format": file_format,
+                "classification_confidence": 0.0,
+                "ocr_confidence": 0.0,
+            }
+            log_to_csv(record)
+            STORE.record(record)
+            return
+
         # Move to TEMP
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
         temp_path = TEMP_DIR / path.name
@@ -439,6 +501,7 @@ def handle_file(path: Path):
 
         # Extraction
         metadata = extract_document_metadata(text)
+        metadata["file_format"] = file_format
 
         # Classification
         route_tag, priority, class_confidence = classify_text(text, metadata)
@@ -483,8 +546,14 @@ def handle_file(path: Path):
             ext=ext,
         )
 
-        STAGING_DIR.mkdir(parents=True, exist_ok=True)
-        final_path = STAGING_DIR / new_name
+        is_personal = is_personal_file(temp_path, metadata)
+        metadata["is_personal"] = is_personal
+
+        target_dir = (
+            ensure_personal_directory(PERSONAL_STORAGE_DIR) if is_personal else STAGING_DIR
+        )
+        target_dir.mkdir(parents=True, exist_ok=True)
+        final_path = target_dir / new_name
 
         # Duplicate detection
         if final_path.exists():
@@ -511,7 +580,8 @@ def handle_file(path: Path):
             return
 
         shutil.move(str(temp_path), final_path)
-        logging.info(f"Moved to staging: {final_path}")
+        destination_label = "personal storage" if is_personal else "staging"
+        logging.info(f"Moved to {destination_label}: {final_path}")
 
         record = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -519,7 +589,7 @@ def handle_file(path: Path):
             "final_path": str(final_path),
             "route_tag": route_tag,
             "priority": priority,
-            "status": "OK",
+            "status": "PERSONAL_STORED" if is_personal else "OK",
             "error": "",
             "classification_confidence": combined_confidence,
             "ocr_confidence": ocr_conf,
