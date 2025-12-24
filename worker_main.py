@@ -19,10 +19,8 @@ CONFIG_PATH = BASE_DIR / "Rules" / "worker_config.json"
 
 DEFAULT_CONFIG = {
     "paths": {
-        "raw_scans_dir": str(BASE_DIR / "data" / "intake_queue"),
-        "unsorted_dir": str(BASE_DIR / "data" / "unsorted"),
-        "needs_review_dir": str(BASE_DIR / "data" / "unsorted"),
-        "raw_backup_dir": str(BASE_DIR / "data" / "raw_backup"),
+        "raw_scans_dir": str(BASE_DIR / "data" / "incoming"),
+        "needs_review_dir": str(BASE_DIR / "data" / "needs_review"),
         "duplicate_hold_dir": str(BASE_DIR / "data" / "duplicate_hold"),
         "ocr_text_dir": str(BASE_DIR / "data" / "ocr_text"),
         "staging_dir": str(BASE_DIR / "data" / "staging"),
@@ -30,17 +28,6 @@ DEFAULT_CONFIG = {
         "logs_dir": str(BASE_DIR / "logs"),
         "rules_file": str(BASE_DIR / "Rules" / "routing_rules.json"),
         "personal_storage_dir": str(BASE_DIR / "data" / "personal" / "secure"),
-        "processed_dirs": {
-            "ap": str(BASE_DIR / "data" / "processed" / "ap"),
-            "ar": str(BASE_DIR / "data" / "processed" / "ar"),
-            "client": str(BASE_DIR / "data" / "processed" / "client"),
-            "admin": str(BASE_DIR / "data" / "processed" / "admin"),
-            "archive": str(BASE_DIR / "data" / "processed" / "archive"),
-            "nsp": str(BASE_DIR / "data" / "processed" / "nsp"),
-            "rli": str(BASE_DIR / "data" / "processed" / "rli"),
-            "fdp": str(BASE_DIR / "data" / "processed" / "fdp"),
-            "personal": str(BASE_DIR / "data" / "processed" / "personal"),
-        },
     },
     "logging": {
         "csv_log": str(BASE_DIR / "logs" / "worker_log.csv"),
@@ -48,8 +35,6 @@ DEFAULT_CONFIG = {
         "metadata_store": str(BASE_DIR / "logs" / "documents.db"),
     },
     "classification": {"min_confidence": 0.5},
-    "unsorted_review": {"cron": "0 21 * * SUN", "enabled": True},
-    "ocr": {"fallback_chain": ["capture_touch", "acrobat", "tesseract"]},
     "polling": {
         "interval_seconds": 10,
         "stability_check_seconds": 2,
@@ -70,22 +55,15 @@ CONFIG = load_config()
 
 # Paths
 PATHS = CONFIG["paths"]
-RAW_SCANS_DIR = Path(PATHS.get("raw_scans_dir", BASE_DIR / "data" / "incoming"))
-UNSORTED_DIR = Path(
-    PATHS.get("unsorted_dir", PATHS.get("needs_review_dir", BASE_DIR / "data" / "unsorted"))
-)
-NEEDS_REVIEW_DIR = Path(PATHS.get("needs_review_dir", UNSORTED_DIR))
-RAW_BACKUP_DIR = Path(PATHS.get("raw_backup_dir", BASE_DIR / "data" / "raw_backup"))
-DUPLICATE_HOLD_DIR = Path(PATHS.get("duplicate_hold_dir", BASE_DIR / "data" / "duplicate_hold"))
-OCR_TEXT_DIR = Path(PATHS.get("ocr_text_dir", BASE_DIR / "data" / "ocr_text"))
-STAGING_DIR = Path(PATHS.get("staging_dir", BASE_DIR / "data" / "staging"))
-TEMP_DIR = Path(PATHS.get("temp_dir", BASE_DIR / "data" / "temp"))
-LOGS_DIR = Path(PATHS.get("logs_dir", BASE_DIR / "logs"))
-RULES_FILE = Path(PATHS.get("rules_file", BASE_DIR / "Rules" / "routing_rules.json"))
-PERSONAL_STORAGE_DIR = Path(
-    PATHS.get("personal_storage_dir", BASE_DIR / "data" / "personal" / "secure")
-)
-PROCESSED_COMPANY_DIRS = PATHS.get("processed_dirs", {})
+RAW_SCANS_DIR = Path(PATHS["raw_scans_dir"])
+NEEDS_REVIEW_DIR = Path(PATHS["needs_review_dir"])
+DUPLICATE_HOLD_DIR = Path(PATHS["duplicate_hold_dir"])
+OCR_TEXT_DIR = Path(PATHS["ocr_text_dir"])
+STAGING_DIR = Path(PATHS["staging_dir"])
+TEMP_DIR = Path(PATHS["temp_dir"])
+LOGS_DIR = Path(PATHS["logs_dir"])
+RULES_FILE = Path(PATHS["rules_file"])
+PERSONAL_STORAGE_DIR = Path(PATHS["personal_storage_dir"])
 
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
