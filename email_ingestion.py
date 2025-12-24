@@ -116,6 +116,13 @@ class DatabaseClient:
                 ),
             )
 
+    def has_metadata_hash(self, metadata_hash: str) -> bool:
+        with sqlite3.connect(self.db_path) as conn:
+            cur = conn.execute(
+                "SELECT 1 FROM document_routes WHERE metadata_hash = ? LIMIT 1", (metadata_hash,)
+            )
+            return cur.fetchone() is not None
+
 
 class EmailIngestor:
     def __init__(self, config: EmailIngestionConfig):
@@ -364,6 +371,30 @@ def process_attachment(attachment: AttachmentRecord, config: EmailIngestionConfi
     route_hint = determine_route_hint(text)
     doc_type = attachment.subject or "email-attachment"
     payload = _qr_payload(doc_type, metadata_hash, route_hint)
+
+    if db.has_metadata_hash(metadata_hash):
+        logging.info("Skipping duplicate attachment %s (metadata hash match)", attachment.filename)
+        stamped_path = stamp_with_qr(attachment.local_path, payload)
+        archive_dir = PROCESSED_DIRS["ARCHIVE"]
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        destination = archive_dir / f"duplicate_{stamped_path.name}"
+        if destination.exists():
+            destination = archive_dir / f"duplicate_{int(time.time())}_{stamped_path.name}"
+        shutil.move(stamped_path, destination)
+        db.record(
+            original_filename=attachment.filename,
+            final_filename=destination.name,
+            route="DUPLICATE",
+            location=str(destination.parent),
+            metadata_hash=metadata_hash,
+            qr_payload=payload,
+        )
+        try:
+            attachment.local_path.unlink(missing_ok=True)
+            logging.info("Removed intake copy %s after duplicate detection", attachment.local_path)
+        except Exception as exc:
+            logging.warning("Failed to remove intake file %s: %s", attachment.local_path, exc)
+        return destination
 
     stamped_path = stamp_with_qr(attachment.local_path, payload)
     metadata = {

@@ -20,6 +20,7 @@ This document describes the end-to-end file processing path for files received a
 4. Build metadata and determine route
    - `build_metadata_hash()` computes a SHA256 hash of extracted text + file bytes.
    - `determine_route_hint()` inspects extracted text for keywords (invoice, receipt, contract, policy) to suggest `AP`, `AR`, `CLIENT`, `ADMIN`, or `ARCHIVE`.
+   - If a metadata hash already exists in `document_routes.db`, the attachment is treated as a duplicate and archived with a QR stamp without calling the worker.
 
 5. Generate QR payload & stamp file
    - QR payload created by `_qr_payload()` and rendered via `_qr_image()` (qrcode lib).
