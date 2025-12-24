@@ -33,6 +33,12 @@ PROCESSED_DIRS = {
     "CLIENT": BASE_DATA_DIR / "processed" / "client",
     "ADMIN": BASE_DATA_DIR / "processed" / "admin",
     "ARCHIVE": BASE_DATA_DIR / "processed" / "archive",
+    # Company-specific processed folders for multi-tenant routing.
+    "NSP": BASE_DATA_DIR / "processed" / "nsp",  # Norscape Properties
+    "RLI": BASE_DATA_DIR / "processed" / "rli",  # Richardson Landscape Inc.
+    "FDP": BASE_DATA_DIR / "processed" / "fdp",  # Felix Diaz personal
+    "PERSONAL": BASE_DATA_DIR / "processed" / "personal",  # Family documents
+    "UNSORTED": BASE_DATA_DIR / "unsorted",
 }
 DB_PATH = BASE_DATA_DIR / "document_routes.db"
 
